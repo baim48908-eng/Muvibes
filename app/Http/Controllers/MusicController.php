@@ -42,24 +42,16 @@ class MusicController extends Controller
         $artist = $request->input('artist');
         $searchQuery = "ytsearch1:{$title} {$artist} official audio";
 
-        // Deteksi otomatis: Jika di Windows (Laragon), pakai path lokal. Jika di Linux (Render/Docker), pakai 'python3'
-        $pythonPath = 'python3';
         $localWindowsPath = 'D:\\laragon\\bin\\python\\python-3.10\\python.exe';
 
-        if (file_exists($localWindowsPath)) {
-            $pythonPath = $localWindowsPath;
-        }
-
         try {
-            $process = new Process([$pythonPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
+            // Jika di Windows pakai path lokal dengan -m yt_dlp, jika di Linux (Railway) panggil binary global 'yt-dlp' langsung
+            if (file_exists($localWindowsPath)) {
+                $process = new Process([$localWindowsPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
+            } else {
+                $process = new Process(['yt-dlp', '-g', '-f', 'bestaudio', $searchQuery]);
+            }
             
-            $process->setEnv([
-                'PYTHONHASHSEED' => '0',
-                'SYSTEMROOT' => getenv('SYSTEMROOT') ?: 'C:\\Windows',
-                'TMP' => sys_get_temp_dir(),
-                'TEMP' => sys_get_temp_dir(),
-            ]);
-
             $process->setTimeout(30);
             $process->run();
 
@@ -74,8 +66,14 @@ class MusicController extends Controller
                         'url' => $audioUrl
                     ]);
                 }
+            } else {
+                // Catat error asli dari yt-dlp ke log Railway jika proses gagal
+                \Log::error("YT-DLP Process Failed: " . $process->getErrorOutput());
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            // Catat exception jika ada error sistem
+            \Log::error("YT-DLP Exception: " . $e->getMessage());
+        }
 
         return response()->json([
             'status' => 'error',
