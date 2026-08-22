@@ -1,10 +1,9 @@
 [phases.setup]
-nixPkgs = ["python3", "python3Packages.pip", "ffmpeg"]
+nixPkgs = ["python3", "yt-dlp", "ffmpeg"]
 
 [phases.build]
 cmds = [
-    "composer install --no-dev --optimize-autoloader",
-    "pip install --upgrade yt-dlp"
+    "composer install --no-dev --optimize-autoloader"
 ]
 
 [start]
