@@ -33,7 +33,9 @@ class MusicController extends Controller
                     'cover' => str_replace('100x100bb.jpg', '400x400bb.jpg', $item['artworkUrl100'] ?? ''),
                 ];
             });
-        } catch (\Exception $e) { return []; }
+        } catch (\Exception $e) { 
+            return []; 
+        }
     }
 
     public function getDirectStream(Request $request)
@@ -45,7 +47,7 @@ class MusicController extends Controller
         $localWindowsPath = 'D:\\laragon\\bin\\python\\python-3.10\\python.exe';
 
         try {
-            // Jika di Windows pakai path lokal dengan -m yt_dlp, jika di Linux (Railway) panggil binary global 'yt-dlp' langsung
+            // Jika di Windows (Laragon), gunakan path Python lokal. Jika di Linux (Railway), panggil perintah 'yt-dlp' langsung.
             if (file_exists($localWindowsPath)) {
                 $process = new Process([$localWindowsPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
             } else {
@@ -67,11 +69,14 @@ class MusicController extends Controller
                     ]);
                 }
             } else {
-                // Catat error asli dari yt-dlp ke log Railway jika proses gagal
-                \Log::error("YT-DLP Process Failed: " . $process->getErrorOutput());
+                // Paksa cetak error ke log Railway agar terlihat jelas di console
+                $errorOutput = $process->getErrorOutput();
+                error_log("YT-DLP Process Failed: " . $errorOutput);
+                \Log::error("YT-DLP Process Failed: " . $errorOutput);
             }
         } catch (\Exception $e) {
-            // Catat exception jika ada error sistem
+            // Paksa cetak exception sistem ke log Railway
+            error_log("YT-DLP Exception: " . $e->getMessage());
             \Log::error("YT-DLP Exception: " . $e->getMessage());
         }
 
