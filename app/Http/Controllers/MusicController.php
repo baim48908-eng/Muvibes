@@ -47,7 +47,7 @@ class MusicController extends Controller
         $localWindowsPath = 'D:\\laragon\\bin\\python\\python-3.10\\python.exe';
 
         try {
-            // Jika di Windows (Laragon), gunakan path Python lokal. Jika di Linux (Railway), panggil perintah 'yt-dlp' langsung.
+            // Jika di Windows (Laragon), pakai path lokal. Jika di Linux (Railway), jalankan 'yt-dlp' langsung.
             if (file_exists($localWindowsPath)) {
                 $process = new Process([$localWindowsPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
             } else {
@@ -69,20 +69,23 @@ class MusicController extends Controller
                     ]);
                 }
             } else {
-                // Paksa cetak error ke log Railway agar terlihat jelas di console
-                $errorOutput = $process->getErrorOutput();
-                error_log("YT-DLP Process Failed: " . $errorOutput);
-                \Log::error("YT-DLP Process Failed: " . $errorOutput);
+                // Tangkap error asli dari proses yt-dlp
+                $errorOutput = $process->getErrorOutput() ?: $process->getOutput();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'YT-DLP Error: ' . trim($errorOutput)
+                ], 500);
             }
         } catch (\Exception $e) {
-            // Paksa cetak exception sistem ke log Railway
-            error_log("YT-DLP Exception: " . $e->getMessage());
-            \Log::error("YT-DLP Exception: " . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Exception Error: ' . $e->getMessage()
+            ], 500);
         }
 
         return response()->json([
             'status' => 'error',
-            'message' => 'Gagal mendapatkan URL audio'
+            'message' => 'Gagal mendapatkan URL audio (Unknown)'
         ], 500);
     }
 }
