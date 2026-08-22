@@ -1,0 +1,20 @@
+FROM php:8.2-fpm
+
+# Install dependencies (termasuk Python dan yt-dlp)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    && pip3 install yt-dlp --break-system-packages
+
+# Copy kode Laravel ke dalam container
+COPY . /var/www/html
+
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html/storage
+
+# Install dependencies PHP
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN composer install --no-dev --optimize-autoloader
+
+# Perintah untuk menjalankan Laravel
+CMD php artisan serve --host=0.0.0.0 --port=$PORT
