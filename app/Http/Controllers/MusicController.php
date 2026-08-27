@@ -94,13 +94,12 @@ class MusicController extends Controller
         $cookiePath = base_path('cookies.txt');
 
         try {
-            // Jika di Windows (Laragon) lokal, jalankan standar. Jika di Railway, gunakan ejs:npm dan cookies.txt.
+            // Jika di Windows (Laragon) lokal, jalankan standar. Jika di Railway, gunakan cookies.txt dan solver bawaan ejs.
             if (file_exists($localWindowsPath)) {
                 $process = new Process([$localWindowsPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
             } else {
                 $processArgs = [
                     'yt-dlp', 
-                    '--remote-components', 'ejs:npm',
                     '--extractor-args', 'youtube:player-client=web',
                 ];
 
