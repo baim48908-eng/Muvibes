@@ -93,14 +93,14 @@ class MusicController extends Controller
         $localWindowsPath = 'D:\\laragon\\bin\\python\\python-3.10\\python.exe';
 
         try {
-            // Jika di Windows (Laragon), pakai path lokal. Jika di Linux (Railway), gunakan client web,ios untuk bypass SABR.
+            // Jika di Windows (Laragon), pakai path lokal. Jika di Linux (Railway), gunakan client web murni untuk menghindari SABR.
             if (file_exists($localWindowsPath)) {
                 $process = new Process([$localWindowsPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
             } else {
                 $process = new Process([
                     'yt-dlp', 
                     '--remote-components', 'ejs:github',
-                    '--extractor-args', 'youtube:player-client=web,ios',
+                    '--extractor-args', 'youtube:player-client=web',
                     '-g', 
                     '-f', 'bestaudio', 
                     $searchQuery
