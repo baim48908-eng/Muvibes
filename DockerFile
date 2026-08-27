@@ -1,6 +1,6 @@
 FROM php:8.2-fpm
 
-# 1. Update dan install tools dasar (termasuk unzip, libzip-dev, python3, dan FFMPEG wajib untuk yt-dlp)
+# 1. Update dan install tools dasar (termasuk unzip, libzip-dev, python3, python3-pip, dan ffmpeg wajib untuk yt-dlp)
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -16,7 +16,7 @@ RUN docker-php-ext-install zip
 # 3. Install yt-dlp global
 RUN pip3 install yt-dlp --break-system-packages
 
-# 4. Install Composer resmi
+# 4. Install Composer resmi dari image composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # 5. Set working directory
@@ -25,17 +25,16 @@ WORKDIR /var/www/html
 # 6. Copy file composer dulu supaya caching Docker optimal
 COPY composer.json composer.lock ./
 
-# 7. Jalankan composer install (izinkan superuser)
+# 7. Jalankan composer install (izinkan superuser dan abaikan kebutuhan platform jika diperlukan)
 ENV COMPOSER_ALLOW_SUPERUSER=1
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+RUN composer install --no-dev --no-scripts --prefer-dist
 
 # 8. Copy seluruh sisa file proyek Laravel
 COPY . .
 
-# 9. Selesaikan autoloader dan permission
+# 9. Selesaikan autoloader dan permission untuk storage & cache
 RUN composer dump-autoload --optimize --no-dev
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # 10. Jalankan server Laravel dengan membaca port dari environment variable Railway
-# Menggunakan sh -c agar variabel $PORT terbaca dengan baik oleh PHP built-in server
 CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
