@@ -67,7 +67,6 @@ class MusicController extends Controller
                     'cover' => $imgUrl,
                 ];
             })->filter(function ($song) {
-                // FILTER MUTLAK DI BACKEND: Mencegah lagu anak-anak masuk ke sistem
                 $title = strtolower($song->title);
                 $artist = strtolower($song->artist);
                 
@@ -94,12 +93,14 @@ class MusicController extends Controller
         $cookiePath = base_path('cookies.txt');
 
         try {
-            // Jika di Windows (Laragon) lokal, jalankan standar. Jika di Railway, gunakan cookies.txt dan solver bawaan ejs.
             if (file_exists($localWindowsPath)) {
                 $process = new Process([$localWindowsPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
             } else {
+                // Menambahkan path Deno dan argumen --js-runtimes agar challenge solver aktif
                 $processArgs = [
                     'yt-dlp', 
+                    '--js-runtimes', 'deno',
+                    '--remote-components', 'ejs:npm',
                     '--extractor-args', 'youtube:player-client=web',
                 ];
 
@@ -110,10 +111,13 @@ class MusicController extends Controller
 
                 $processArgs[] = '-g';
                 $processArgs[] = '-f';
-                $processArgs[] = 'bestaudio';
+                $processArgs[] = 'bestaudio/best'; // Fallback yang lebih aman
                 $processArgs[] = $searchQuery;
 
-                $process = new Process($processArgs);
+                // Set environment path agar proses PHP bisa mendeteksi binary deno di /root/.deno/bin
+                $process = new Process($processArgs, null, [
+                    'PATH' => '/root/.deno/bin:/usr/local/bin:/usr/bin:/bin'
+                ]);
             }
             
             $process->setTimeout(30);
@@ -131,7 +135,6 @@ class MusicController extends Controller
                     ]);
                 }
             } else {
-                // Tangkap error asli dari proses yt-dlp
                 $errorOutput = $process->getErrorOutput() ?: $process->getOutput();
                 return response()->json([
                     'status' => 'error',
