@@ -67,15 +67,15 @@ class MusicController extends Controller
                     'cover' => $imgUrl,
                 ];
             })->filter(function ($song) {
-                // FILTER MUTLAK DI BACKEND: Mencegah lagu anak-anak seperti Five Little Monkeys masuk ke sistem
+                // FILTER MUTLAK DI BACKEND: Mencegah lagu anak-anak masuk ke sistem
                 $title = strtolower($song->title);
                 $artist = strtolower($song->artist);
                 
                 $isKidsSong = str_contains($title, 'monkey') || 
-                              str_contains($title, 'nursery') || 
-                              str_contains($title, 'rhymes') || 
-                              str_contains($artist, 'kids');
-                              
+                            str_contains($title, 'nursery') || 
+                            str_contains($title, 'rhymes') || 
+                            str_contains($artist, 'kids');
+                            
                 return !$isKidsSong;
             })->values()->all();
 
@@ -90,23 +90,16 @@ class MusicController extends Controller
         $artist = $request->input('artist');
         $searchQuery = "ytsearch1:{$title} {$artist} official audio";
 
-        $pythonPath = 'python3';
         $localWindowsPath = 'D:\\laragon\\bin\\python\\python-3.10\\python.exe';
 
-        if (file_exists($localWindowsPath)) {
-            $pythonPath = $localWindowsPath;
-        }
-
         try {
-            $process = new Process([$pythonPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
+            // Jika di Windows (Laragon), pakai path lokal. Jika di Linux (Railway), jalankan 'yt-dlp' langsung.
+            if (file_exists($localWindowsPath)) {
+                $process = new Process([$localWindowsPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
+            } else {
+                $process = new Process(['yt-dlp', '-g', '-f', 'bestaudio', $searchQuery]);
+            }
             
-            $process->setEnv([
-                'PYTHONHASHSEED' => '0',
-                'SYSTEMROOT' => getenv('SYSTEMROOT') ?: 'C:\\Windows',
-                'TMP' => sys_get_temp_dir(),
-                'TEMP' => sys_get_temp_dir(),
-            ]);
-
             $process->setTimeout(30);
             $process->run();
 
@@ -121,12 +114,24 @@ class MusicController extends Controller
                         'url' => $audioUrl
                     ]);
                 }
+            } else {
+                // Tangkap error asli dari proses yt-dlp
+                $errorOutput = $process->getErrorOutput() ?: $process->getOutput();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'YT-DLP Error: ' . trim($errorOutput)
+                ], 500);
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Exception Error: ' . $e->getMessage()
+            ], 500);
+        }
 
         return response()->json([
             'status' => 'error',
-            'message' => 'Gagal mendapatkan URL audio'
+            'message' => 'Gagal mendapatkan URL audio (Unknown)'
         ], 500);
     }
 }
