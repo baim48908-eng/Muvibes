@@ -18,8 +18,8 @@ ENV PATH="/root/.deno/bin:$PATH"
 # 3. Aktifkan ekstensi zip PHP
 RUN docker-php-ext-install zip
 
-# 4. Install yt-dlp global
-RUN pip3 install yt-dlp --break-system-packages
+# 4. Install yt-dlp dan yt-dlp-ejs secara global
+RUN pip3 install --no-cache-dir --upgrade yt-dlp yt-dlp-ejs --break-system-packages
 
 # 5. Install Composer resmi dari image composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -34,12 +34,12 @@ COPY composer.json composer.lock ./
 ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN composer install --ignore-platform-reqs --no-dev --no-scripts --prefer-dist
 
-# 9. Copy seluruh sisa file proyek Laravel
+# 9. Copy seluruh sisa file proyek Laravel (termasuk cookies.txt)
 COPY . .
 
 # 10. Selesaikan autoloader dan permission
 RUN composer dump-autoload --optimize --no-dev --ignore-platform-reqs
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/cookies.txt
 
 # 11. Jalankan server Laravel
 CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
