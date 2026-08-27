@@ -67,6 +67,7 @@ class MusicController extends Controller
                     'cover' => $imgUrl,
                 ];
             })->filter(function ($song) {
+                // FILTER MUTLAK DI BACKEND: Mencegah lagu anak-anak masuk ke sistem
                 $title = strtolower($song->title);
                 $artist = strtolower($song->artist);
                 
@@ -93,10 +94,10 @@ class MusicController extends Controller
         $cookiePath = base_path('cookies.txt');
 
         try {
+            // Jika di Windows (Laragon) lokal, jalankan standar. Jika di Railway, gunakan Deno, ejs:npm, dan cookies.txt.
             if (file_exists($localWindowsPath)) {
                 $process = new Process([$localWindowsPath, '-m', 'yt_dlp', '-g', '-f', 'bestaudio', $searchQuery]);
             } else {
-                // Menambahkan path Deno dan argumen --js-runtimes agar challenge solver aktif
                 $processArgs = [
                     'yt-dlp', 
                     '--js-runtimes', 'deno',
@@ -111,10 +112,9 @@ class MusicController extends Controller
 
                 $processArgs[] = '-g';
                 $processArgs[] = '-f';
-                $processArgs[] = 'bestaudio/best'; // Fallback yang lebih aman
+                $processArgs[] = 'bestaudio/best';
                 $processArgs[] = $searchQuery;
 
-                // Set environment path agar proses PHP bisa mendeteksi binary deno di /root/.deno/bin
                 $process = new Process($processArgs, null, [
                     'PATH' => '/root/.deno/bin:/usr/local/bin:/usr/bin:/bin'
                 ]);
@@ -129,12 +129,21 @@ class MusicController extends Controller
                 $audioUrl = trim($lines[0] ?? '');
 
                 if (!empty($audioUrl)) {
-                    return response()->json([
-                        'status' => 'success',
-                        'url' => $audioUrl
+                    // Stream data audio langsung melalui server Laravel untuk menghindari pemblokiran CORS browser
+                    return response()->stream(function () use ($audioUrl) {
+                        $stream = fopen($audioUrl, 'r');
+                        while (!feof($stream)) {
+                            echo fread($stream, 1024 * 8);
+                            flush();
+                        }
+                        fclose($stream);
+                    }, 200, [
+                        'Content-Type' => 'audio/mpeg',
+                        'X-Accel-Buffering' => 'no',
                     ]);
                 }
             } else {
+                // Tangkap error asli dari proses yt-dlp
                 $errorOutput = $process->getErrorOutput() ?: $process->getOutput();
                 return response()->json([
                     'status' => 'error',
