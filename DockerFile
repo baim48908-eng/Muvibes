@@ -1,12 +1,13 @@
 FROM php:8.2-fpm
 
-# 1. Update dan install tools dasar (termasuk unzip, libzip-dev, python3)
+# 1. Update dan install tools dasar (termasuk unzip, libzip-dev, python3, dan FFMPEG wajib untuk yt-dlp)
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
     libzip-dev \
     python3 \
     python3-pip \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Aktifkan ekstensi zip PHP
@@ -35,5 +36,6 @@ COPY . .
 RUN composer dump-autoload --optimize --no-dev
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# 10. Jalankan server Laravel
-CMD php artisan serve --host=0.0.0.0 --port=$PORT
+# 10. Jalankan server Laravel dengan membaca port dari environment variable Railway
+# Menggunakan sh -c agar variabel $PORT terbaca dengan baik oleh PHP built-in server
+CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]

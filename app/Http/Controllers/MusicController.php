@@ -10,30 +10,78 @@ class MusicController extends Controller
 {
     public function index()
     {
-        $songs = $this->searchiTunes('Billie Eilish');
-        $newReleases = collect($songs);
-        $trendingTracks = $newReleases->take(4);
+        $songs = $this->searchiTunes('Indonesian Pop');
+        $newReleases = $songs;
+        $trendingTracks = collect($songs)->take(4)->all();
         return view('home', compact('newReleases', 'trendingTracks'));
     }
 
     public function searchAjax(Request $request)
     {
-        return response()->json($this->searchiTunes($request->input('q') ?: 'Billie Eilish'));
+        $query = $request->input('q');
+        if (empty($query)) {
+            return response()->json([]);
+        }
+
+        $cleanQuery = $this->extractSmartKeyword($query);
+        $results = $this->searchiTunes($cleanQuery);
+        
+        if (empty($results)) {
+            $results = $this->searchiTunes($query);
+        }
+
+        return response()->json($results);
+    }
+
+    private function extractSmartKeyword($input)
+    {
+        $clean = preg_replace('/(official|audio|video|lyrics|ft|feat|\(|\[).*$/i', '', $input);
+        $words = explode(' ', trim($clean));
+        if (count($words) > 1) {
+            return $words[0] . ' ' . ($words[1] ?? '');
+        }
+        return trim($clean);
     }
 
     private function searchiTunes($query)
     {
         try {
-            $response = Http::get("https://itunes.apple.com/search", ['term' => $query, 'media' => 'music', 'limit' => 12]);
+            $response = Http::get("https://itunes.apple.com/search", [
+                'term' => $query, 
+                'media' => 'music', 
+                'limit' => 20
+            ]);
+            
             return collect($response->json()['results'] ?? [] )->map(function ($item) {
+                $imgUrl = $item['artworkUrl100'] ?? '';
+                if (!empty($imgUrl)) {
+                    $imgUrl = str_replace('100x100bb.jpg', '400x400bb.jpg', $imgUrl);
+                } else {
+                    $imgUrl = 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=500';
+                }
+
                 return (object) [
                     'id' => $item['trackId'] ?? rand(1000, 9999),
                     'title' => $item['trackName'] ?? 'Unknown',
                     'artist' => $item['artistName'] ?? 'Unknown',
-                    'cover' => str_replace('100x100bb.jpg', '400x400bb.jpg', $item['artworkUrl100'] ?? ''),
+                    'cover' => $imgUrl,
                 ];
-            });
-        } catch (\Exception $e) { return []; }
+            })->filter(function ($song) {
+                // FILTER MUTLAK DI BACKEND: Mencegah lagu anak-anak seperti Five Little Monkeys masuk ke sistem
+                $title = strtolower($song->title);
+                $artist = strtolower($song->artist);
+                
+                $isKidsSong = str_contains($title, 'monkey') || 
+                              str_contains($title, 'nursery') || 
+                              str_contains($title, 'rhymes') || 
+                              str_contains($artist, 'kids');
+                              
+                return !$isKidsSong;
+            })->values()->all();
+
+        } catch (\Exception $e) { 
+            return []; 
+        }
     }
 
     public function getDirectStream(Request $request)
@@ -42,7 +90,6 @@ class MusicController extends Controller
         $artist = $request->input('artist');
         $searchQuery = "ytsearch1:{$title} {$artist} official audio";
 
-        // Deteksi otomatis: Jika di Windows (Laragon), pakai path lokal. Jika di Linux (Render/Docker), pakai 'python3'
         $pythonPath = 'python3';
         $localWindowsPath = 'D:\\laragon\\bin\\python\\python-3.10\\python.exe';
 

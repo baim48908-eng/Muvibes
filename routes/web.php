@@ -20,6 +20,7 @@ Route::get('/', [MusicController::class, 'index']);
 // Rute khusus untuk AJAX Live Search (Pencarian Instan)
 Route::get('/api/search', [MusicController::class, 'searchAjax']);
 Route::get('/stream/{videoId}', [MusicController::class, 'streamAudio'])->name('music.stream');
+Route::get('/search-ajax', [MusicController::class, 'searchAjax']);
 Route::get('/get-video-id', [MusicController::class, 'getVideoId']);
 Route::get('/get-direct-stream', [MusicController::class, 'getDirectStream']);
 Route::get('/stream-proxy', [MusicController::class, 'streamProxy']);
